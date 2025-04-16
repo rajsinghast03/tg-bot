@@ -53,4 +53,7 @@ bot.on(message("text"), async (ctx) => {
   }
 });
 
-bot.launch();
+(async () => {
+  await bot.launch();
+  console.log("🚀 Bot is up and running!");
+})();
