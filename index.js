@@ -13,7 +13,6 @@ bot.start((ctx) => {
 
 bot.on(message("text"), async (ctx) => {
   const url = ctx.message.text;
-  console.log(url);
 
   if (!url.includes("instagram.com")) {
     return ctx.reply("Please send a valid Instagram URL.");
@@ -53,7 +52,6 @@ bot.on(message("text"), async (ctx) => {
   }
 });
 
-(async () => {
-  await bot.launch();
-  console.log("🚀 Bot is up and running!");
-})();
+bot.launch().then(() => {
+  console.log("🤖 Bot is running!");
+});
