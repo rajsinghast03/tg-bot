@@ -125,7 +125,7 @@ bot.on(message("text"), async (ctx) => {
         }
       } catch (error: any) {
         console.error("Login error:", error.message);
-        return ctx.reply(`Login failed: ${error.message}`);
+        return ctx.reply(`Login failed❗`);
       }
     } else {
       return ctx.reply(
@@ -206,7 +206,7 @@ bot.action(/semester_(\d+)/, async (ctx) => {
       `Error fetching result for semester ${semester}:`,
       err.message
     );
-    ctx.reply(`Error fetching result for semester ${semester}: ${err.message}`);
+    ctx.reply(`Error fetching result for semester ${semester}`);
   }
 });
 
