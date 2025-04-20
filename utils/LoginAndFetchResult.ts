@@ -66,7 +66,7 @@ export default async function fetchResult(
         (cookie) => cookie.name === "ASP.NET_SessionId"
       );
       if (sessionIdCookie) {
-        console.log("Extracted session cookie:", sessionIdCookie.value);
+        console.log("Extracted session cookie:");
         await page.goto(
           "https://jcboseustymca.co.in/Forms/Student/StudentResult.aspx?menuID=119",
           {
