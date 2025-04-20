@@ -18,9 +18,7 @@ bot.command("start", (ctx) => {
   ctx.reply(
     `Welcome to the Result Bot! 😃 \n` +
       ` Use /result to fetch your academic📚 result. \n` +
-      `Made with ❤️ by Raj Singh.
-Connect with me on [LinkedIn](https://www.linkedin.com/in/rajsinghast03/)
-Use menu buttton for more commands.
+      `Use menu buttton for more commands.
 `,
     {
       parse_mode: "Markdown",
