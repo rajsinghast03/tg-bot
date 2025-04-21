@@ -9,6 +9,7 @@ import { roastResult } from "./utils/groqAi.js";
 const redis = new Redis(process.env.REDIS_URL || "");
 const WAITING_FOR_PASSWORD = new Map<number, boolean>();
 const WAITING_FOR_SEMESTER = new Map<number, boolean>();
+const WAITING_FOR_COOKIE_CONSENT = new Map<number, { cookie: string }>();
 const USER_LOGGED_IN = new Map<number, boolean>();
 const COOKIE_KEY_PREFIX = "session_cookie:";
 
@@ -46,7 +47,7 @@ bot.command("result", async (ctx) => {
   } else {
     WAITING_FOR_PASSWORD.set(userId, true);
     return ctx.reply(
-      "Please enter your university rollno and password (separated by a space).\nExample: 123456 password123"
+      "Please enter your university rollno and password (separated by a space)."
     );
   }
 });
@@ -84,16 +85,24 @@ bot.on(message("text"), async (ctx) => {
       try {
         const { cookie } = await fetchResultWithCluster({ username, password });
         if (cookie) {
-          await redis.setex(`${COOKIE_KEY_PREFIX}${userId}`, 600, cookie);
-          USER_LOGGED_IN.set(userId, true);
-          WAITING_FOR_SEMESTER.set(userId, true);
+          // Instead of immediately storing the cookie, ask for consent
+          WAITING_FOR_COOKIE_CONSENT.set(userId, { cookie });
           return ctx.reply(
-            "Login successful. Which semester result do you want to view?",
+            "Login successful! Would you like to store your session for future use? This will keep you logged in for 10 minutes.",
             {
               reply_markup: {
-                inline_keyboard: Array.from({ length: 8 }, (_, i) => [
-                  { text: `${i + 1}`, callback_data: `semester_${i + 1}` },
-                ]),
+                inline_keyboard: [
+                  [
+                    {
+                      text: "Yes, store session",
+                      callback_data: "store_cookie_yes",
+                    },
+                    {
+                      text: "No, don't store",
+                      callback_data: "store_cookie_no",
+                    },
+                  ],
+                ],
               },
             }
           );
@@ -124,25 +133,96 @@ bot.on(message("text"), async (ctx) => {
   }
 });
 
-bot.action(/semester_(\d+)/, async (ctx) => {
+// Handle cookie storage consent
+bot.action("store_cookie_yes", async (ctx) => {
   const userId = ctx.from?.id;
-  if (!userId || !WAITING_FOR_SEMESTER.get(userId)) return;
+  if (!userId) return;
 
-  WAITING_FOR_SEMESTER.delete(userId);
+  const cookieData = WAITING_FOR_COOKIE_CONSENT.get(userId);
+  if (!cookieData) {
+    return ctx.reply(
+      "Session expired. Please try logging in again with /result"
+    );
+  }
+
+  // Store the cookie with user's consent
+  await redis.setex(`${COOKIE_KEY_PREFIX}${userId}`, 600, cookieData.cookie);
+  USER_LOGGED_IN.set(userId, true);
+  WAITING_FOR_COOKIE_CONSENT.delete(userId);
+
+  ctx.reply(
+    "Your session has been stored. Now, which semester result do you want to view?",
+    {
+      reply_markup: {
+        inline_keyboard: Array.from({ length: 8 }, (_, i) => [
+          { text: `${i + 1}`, callback_data: `semester_${i + 1}` },
+        ]),
+      },
+    }
+  );
+});
+
+bot.action("store_cookie_no", async (ctx) => {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
+  const cookieData = WAITING_FOR_COOKIE_CONSENT.get(userId);
+  if (!cookieData) {
+    return ctx.reply(
+      "Session expired. Please try logging in again with /result"
+    );
+  }
+
+  // Don't store the cookie, but proceed with a temporary session
+  USER_LOGGED_IN.set(userId, true);
+  WAITING_FOR_COOKIE_CONSENT.delete(userId);
+
+  // Proceeding with temporary cookie usage
+  ctx.reply(
+    "Session will not be stored. Which semester result do you want to view?",
+    {
+      reply_markup: {
+        inline_keyboard: Array.from({ length: 8 }, (_, i) => [
+          { text: `${i + 1}`, callback_data: `semester_${i + 1}_temp` },
+        ]),
+      },
+    }
+  );
+});
+
+bot.action(/semester_(\d+)(_temp)?/, async (ctx) => {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
   const semester = ctx.match[1];
+  const isTemporary = ctx.match[2] === "_temp";
+  let cookie;
+
   ctx.reply(`Fetching result for semester ${semester}, please wait...`);
 
-  const cachedCookie = await redis.get(`${COOKIE_KEY_PREFIX}${userId}`);
-  if (!cachedCookie) {
-    return ctx.reply(
-      "Your session has expired. Please use /result again to log in."
-    );
+  if (isTemporary) {
+    // For temporary sessions, check if we still have the cookie in memory
+    const cookieData = WAITING_FOR_COOKIE_CONSENT.get(userId);
+    if (!cookieData) {
+      return ctx.reply(
+        "Your temporary session has expired. Please use /result to log in again."
+      );
+    }
+    cookie = cookieData.cookie;
+  } else {
+    // For stored sessions, retrieve from Redis
+    cookie = await redis.get(`${COOKIE_KEY_PREFIX}${userId}`);
+    if (!cookie) {
+      return ctx.reply(
+        "Your session has expired. Please use /result again to log in."
+      );
+    }
   }
 
   try {
     const result = await fetchResultWithCluster({
       semester,
-      cachedCookie,
+      cachedCookie: cookie,
     });
 
     if (result.screenshot == null || result.pdf == null) {
@@ -164,6 +244,11 @@ bot.action(/semester_(\d+)/, async (ctx) => {
 
     const roast = await roastResult(result.text!);
     await ctx.reply(roast);
+
+    // If this was a temporary session, clean up after use
+    if (isTemporary) {
+      WAITING_FOR_COOKIE_CONSENT.delete(userId);
+    }
   } catch (err: any) {
     console.error(
       `Error fetching result for semester ${semester}:`,
