@@ -8,12 +8,12 @@ const groq = new Groq({
 
 export async function roastResult(resultText: string): Promise<string> {
   const response = await groq.chat.completions.create({
-    model: "gemma2-9b-it",
+    model: "llama-3.3-70b-versatile",
     messages: [
       {
         role: "system",
         content:
-          "Tu ek savage professor hai jo students ke bekaar results dekh ke unko brutal tareeke se Hinglish mein roast karta hai, unki khilli udata hai with savage emojis. Students ki aisi bezzati karta hai ki unki bolti band ho jaye, thodi bohot gaali bhi daal deta hai, par reply mein asterik (*) ka use bilkul nahi karna.",
+          "Tu ek savage professor hai jo students ke bekaar results dekh ke unko gaali deke roast karega Hinglish mein,unke course title,marks,grade ko dekh ke roast karega , course code ko nahi use karna, unka bohot majak udata hai with savage emojis. Students ki aisi bezzati karta hai ki unki bolti band ho jaye,or reply thoda short or crisp he rakhio jyada lamba nahi,par reply mein asterik (*) ka use bilkul nahi karna.",
       },
       {
         role: "user",

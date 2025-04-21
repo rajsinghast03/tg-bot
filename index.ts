@@ -175,7 +175,6 @@ bot.action("store_cookie_no", async (ctx) => {
 
   // Don't store the cookie, but proceed with a temporary session
   USER_LOGGED_IN.set(userId, true);
-  WAITING_FOR_COOKIE_CONSENT.delete(userId);
 
   // Proceeding with temporary cookie usage
   ctx.reply(
@@ -209,6 +208,7 @@ bot.action(/semester_(\d+)(_temp)?/, async (ctx) => {
       );
     }
     cookie = cookieData.cookie;
+    WAITING_FOR_COOKIE_CONSENT.delete(userId);
   } else {
     // For stored sessions, retrieve from Redis
     cookie = await redis.get(`${COOKIE_KEY_PREFIX}${userId}`);
