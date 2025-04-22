@@ -66,7 +66,9 @@ export async function fetchResultWithCluster(
       if (!isLoggedIn)
         throw new Error("Login failed. Please check credentials.");
 
-      const cookies = await page.cookies();
+      // const cookies = await page.cookies();
+      const browserContext = page.browserContext();
+      const cookies = await browserContext.cookies();
       const sessionIdCookie = cookies.find(
         (cookie) => cookie.name === "ASP.NET_SessionId"
       );
