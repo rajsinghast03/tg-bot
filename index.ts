@@ -5,6 +5,9 @@ import { Telegraf } from "telegraf";
 import { message } from "telegraf/filters";
 import Redis from "ioredis";
 import { roastResult } from "./utils/groqAi.js";
+import { startRedisKeepAlive } from "./utils/keepAliveRedis.js";
+
+startRedisKeepAlive();
 
 const redis = new Redis(process.env.REDIS_URL || "");
 const WAITING_FOR_PASSWORD = new Map<number, boolean>();
